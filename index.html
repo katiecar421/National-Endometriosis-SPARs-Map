@@ -278,11 +278,11 @@ function tractStyle(feature) {
   const p = feature.properties;
 
   return {
-    color: "#ffffff",
-    weight: 0.25,
-    opacity: 0.65,
+    stroke: false,
+    fill: true,
     fillColor: getColor(p[currentLayer], currentLayer),
-    fillOpacity: 0.8
+    fillOpacity: 0.95,
+    interactive: true
   };
 }
 
