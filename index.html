@@ -74,8 +74,21 @@
 const map = L.map("map", {
   preferCanvas: true,
   zoomControl: true
-}).setView([39.5, -98.5], 4);
+});
 
+map.fitBounds(
+  [[24.5, -125], [49.5, -66]],
+  {
+    padding: [10, 10]
+  }
+);
+
+// Create a separate pane for provider markers
+// so they appear above census tract polygons
+map.createPane("providerPane");
+map.getPane("providerPane").style.zIndex = 650;
+
+// Add OpenStreetMap basemap
 L.tileLayer(
   "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
   {
@@ -292,12 +305,13 @@ fetch("providers.geojson")
 
       pointToLayer: function(feature, latlng) {
         return L.circleMarker(latlng, {
-  radius: 4,
-  color: "#1f77b4",
-  fillColor: "#1f77b4",
-  weight: 1,
-  stroke: true,
-  fillOpacity: 0.85
+  radius: 6,
+  color: "#08306b",
+  fillColor: "#2171b5",
+  weight: 1.5,
+  opacity: 1,
+  fillOpacity: 1,
+  pane: "providerPane"
 });
       },
 
