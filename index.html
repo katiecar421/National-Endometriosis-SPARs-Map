@@ -430,12 +430,24 @@ fetch("tracts.topojson")
 if (spaiMax <= 0) spaiMax = 1;
 
     tractLayer = L.geoJSON(geojson, {
-      renderer: L.canvas({padding: 0.5}),
-      style: tractStyle,
-      onEachFeature: function(feature, layer) {
-        layer.bindPopup(() => tractPopup(feature));
-      }
-    }).addTo(map);
+  renderer: L.canvas({ padding: 0.5 }),
+  interactive: true,
+  style: tractStyle,
+
+  onEachFeature: function(feature, layer) {
+    layer.bindPopup(function() {
+      const p = feature.properties;
+
+      return `
+        <b>Census Tract:</b> ${p.FIPS}<br>
+        <b>SPAR:</b> ${Number(p.SPAR).toFixed(2)}<br>
+        <b>SPAI:</b> ${Number(p.SPAI).toExponential(3)}<br>
+        <b>Females Ages 10–54:</b>
+        ${Number(p.POPULATION).toLocaleString()}
+      `;
+    });
+  }
+}).addTo(map);
 
     updateLegend();
 
