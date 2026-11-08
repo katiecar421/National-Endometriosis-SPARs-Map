@@ -8,7 +8,28 @@
 
 <link rel="stylesheet"
  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+/* City labels */
+.city-label {
+  background: rgba(255, 255, 255, 0.88);
+  border: none;
+  border-radius: 3px;
+  box-shadow: none;
+  color: #202020;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 4px;
+  white-space: nowrap;
+}
 
+.city-label::before {
+  display: none;
+}
+
+.city-label-major {
+  font-size: 12px;
+  font-weight: 700;
+}
 <style>
   html, body, #map {
     width: 100%;
@@ -102,6 +123,127 @@ let tractLayer;
 let providerLayer = L.layerGroup();
 let showProviders = true;
 let spaiMax = 1;
+ 
+/*************************************************
+ * CITY LABELS — ENDOMETRIOSIS SPECIALIST DIRECTORY
+ *************************************************/
+
+// Format: [City label, latitude, longitude, minimum zoom]
+const cities = [
+  // Northeast
+  ["New York, NY", 40.7128, -74.0060, 4],
+  ["Boston, MA", 42.3601, -71.0589, 4],
+  ["Pittsburgh, PA", 40.4406, -79.9959, 4],
+  ["Baltimore, MD", 39.2904, -76.6122, 6],
+  ["Hartford, CT", 41.7658, -72.6734, 7],
+  ["Exeter, NH", 42.9814, -70.9478, 9],
+  ["Burlington, MA", 42.5048, -71.1956, 9],
+  ["Waltham, MA", 42.3765, -71.2356, 9],
+  ["Monroeville, PA", 40.4212, -79.7881, 9],
+  ["Newtown Square, PA", 39.9868, -75.4005, 9],
+  ["Port Jefferson Station, NY", 40.9254, -73.0473, 9],
+  ["Paramus, NJ", 40.9445, -74.0754, 9],
+  ["Englewood, NJ", 40.8929, -73.9726, 9],
+  ["Voorhees, NJ", 39.8434, -74.9535, 9],
+
+  // South and Mid-Atlantic
+  ["Atlanta, GA", 33.7490, -84.3880, 4],
+  ["Washington, DC", 38.9072, -77.0369, 4],
+  ["Dallas, TX", 32.7767, -96.7970, 4],
+  ["Miami, FL", 25.7617, -80.1918, 6],
+  ["Orlando, FL", 28.5383, -81.3792, 6],
+  ["Tampa, FL", 27.9506, -82.4572, 6],
+  ["Charlotte, NC", 35.2271, -80.8431, 6],
+  ["Lexington, KY", 38.0406, -84.5037, 6],
+  ["Charleston, WV", 38.3498, -81.6326, 7],
+  ["West Palm Beach, FL", 26.7153, -80.0534, 8],
+  ["Martinsburg, WV", 39.4562, -77.9639, 9],
+  ["Falls Church, VA", 38.8823, -77.1711, 9],
+
+  // Midwest
+  ["St. Louis, MO", 38.6270, -90.1994, 4],
+  ["Kansas City, KS", 39.1141, -94.6275, 6],
+  ["Cleveland, OH", 41.4993, -81.6944, 6],
+  ["Rochester, MN", 44.0121, -92.4802, 7],
+  ["Grand Rapids, MI", 42.9634, -85.6681, 7],
+  ["Troy, MI", 42.6064, -83.1498, 8],
+  ["Maple Grove, MN", 45.0725, -93.4558, 9],
+
+  // Mountain
+  ["Denver, CO", 39.7392, -104.9903, 4],
+  ["Phoenix, AZ", 33.4484, -112.0740, 4],
+  ["Post Falls, ID", 47.7179, -116.9516, 7],
+  ["Draper, UT", 40.5247, -111.8638, 8],
+
+  // West
+  ["Los Angeles, CA", 34.0522, -118.2437, 4],
+  ["San Francisco, CA", 37.7749, -122.4194, 4],
+  ["Portland, OR", 45.5152, -122.6784, 4],
+  ["Gig Harbor, WA", 47.3293, -122.5801, 7],
+  ["Palo Alto, CA", 37.4419, -122.1430, 8],
+  ["Oakland, CA", 37.8044, -122.2712, 8],
+  ["Redwood City, CA", 37.4852, -122.2364, 9],
+  ["Los Gatos, CA", 37.2358, -121.9624, 9],
+  ["Beverly Hills, CA", 34.0736, -118.4004, 9],
+  ["Costa Mesa, CA", 33.6411, -117.9187, 9],
+  ["La Jolla, CA", 32.8328, -117.2713, 9],
+  ["Los Alamitos, CA", 33.8031, -118.0726, 9],
+  ["Playa Vista, CA", 33.9750, -118.4182, 10]
+];
+
+// Separate pane keeps city labels above tract polygons
+map.createPane("cityLabelPane");
+map.getPane("cityLabelPane").style.zIndex = 660;
+map.getPane("cityLabelPane").style.pointerEvents = "none";
+
+const cityLayer = L.layerGroup();
+let showCities = true;
+
+cities.forEach(function(city) {
+  const [name, lat, lon, minZoom] = city;
+
+  const marker = L.marker([lat, lon], {
+    icon: L.divIcon({
+      className: "",
+      html: "",
+      iconSize: [1, 1]
+    }),
+    pane: "cityLabelPane",
+    interactive: false
+  });
+
+  marker.bindTooltip(name, {
+    permanent: true,
+    direction: "center",
+    offset: [0, 0],
+    className: minZoom <= 4
+      ? "city-label city-label-major"
+      : "city-label"
+  });
+
+  marker.minimumZoom = minZoom;
+  cityLayer.addLayer(marker);
+});
+
+// Show only labels appropriate for the current zoom
+function updateCityLabels() {
+  const zoom = map.getZoom();
+
+  cityLayer.eachLayer(function(marker) {
+    const shouldShow = showCities &&
+                       zoom >= marker.minimumZoom;
+
+    if (shouldShow && !map.hasLayer(marker)) {
+      marker.addTo(map);
+    } else if (!shouldShow && map.hasLayer(marker)) {
+      map.removeLayer(marker);
+    }
+  });
+}
+
+map.on("zoomend", updateCityLabels);
+updateCityLabels();
+
 
 function numeric(value) {
   return Number(value);
@@ -166,6 +308,10 @@ layerControl.onAdd = function() {
     <hr>
     <label><input type="checkbox" id="providersToggle"
       checked> Provider locations</label>
+      <label>
+  <input type="checkbox" id="citiesToggle" checked>
+  City labels
+</label>
   `;
 
   L.DomEvent.disableClickPropagation(div);
@@ -194,7 +340,13 @@ layerControl.onAdd = function() {
       }
     }
   );
-
+div.querySelector("#citiesToggle").addEventListener(
+  "change",
+  function() {
+    showCities = this.checked;
+    updateCityLabels();
+  }
+);
   return div;
 };
 
