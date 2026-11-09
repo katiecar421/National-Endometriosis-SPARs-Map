@@ -487,17 +487,18 @@ fetch("providers.geojson")
     providerLayer = L.geoJSON(geojson, {
 
       pointToLayer: function(feature, latlng) {
-        return L.circleMarker(latlng, {
-  radius: 6,
-  color: "#08306b",
-  fillColor: "#2171b5",
-  weight: 1.5,
-  opacity: 1,
-  fillOpacity: 1,
-  pane: "providerPane",
-  interactive: true
-});
-      },
+  return L.circleMarker(latlng, {
+    radius: 6,
+    color: "#08306b",
+    fillColor: "#2171b5",
+    weight: 1.5,
+    opacity: 1,
+    fillOpacity: 1,
+    pane: "providerPane",
+    renderer: L.svg({ pane: "providerPane" }),
+    interactive: true
+  });
+},
 
       onEachFeature: function(feature, layer) {
   layer.bindPopup(`
