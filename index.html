@@ -113,6 +113,7 @@ map.fitBounds(
 // so they appear above census tract polygons
 map.createPane("providerPane");
 map.getPane("providerPane").style.zIndex = 650;
+map.getPane("providerPane").style.pointerEvents = "none";
 
 // Add OpenStreetMap basemap
 L.tileLayer(
@@ -435,23 +436,32 @@ fetch("tracts.topojson")
 if (spaiMax <= 0) spaiMax = 1;
 
     tractLayer = L.geoJSON(geojson, {
-  renderer: L.canvas({ padding: 0.5 }),
+  renderer: L.canvas({
+    padding: 0.5,
+    tolerance: 5
+  }),
   interactive: true,
+  bubblingMouseEvents: false,
   style: tractStyle,
 
-  onEachFeature: function(feature, layer) {
-    layer.bindPopup(function() {
-      const p = feature.properties;
+onEachFeature: function(feature, layer) {
 
-      return `
-        <b>Census Tract:</b> ${p.FIPS}<br>
-        <b>SPAR:</b> ${Number(p.SPAR).toFixed(2)}<br>
-        <b>SPAI:</b> ${Number(p.SPAI).toExponential(3)}<br>
-        <b>Females Ages 10–54:</b>
-        ${Number(p.POPULATION).toLocaleString()}
-      `;
-    });
-  }
+  layer.on("click", function() {
+    console.log("TRACT CLICK DETECTED:", feature.properties.FIPS);
+  });
+
+  layer.bindPopup(function() {
+    const p = feature.properties;
+
+    return `
+      <b>Census Tract:</b> ${p.FIPS}<br>
+      <b>SPAR:</b> ${Number(p.SPAR).toFixed(2)}<br>
+      <b>SPAI:</b> ${Number(p.SPAI).toExponential(3)}<br>
+      <b>Females Ages 10–54:</b>
+      ${Number(p.POPULATION).toLocaleString()}
+    `;
+  });
+}
 }).addTo(map);
 
     updateLegend();
@@ -485,7 +495,8 @@ fetch("providers.geojson")
   weight: 1.5,
   opacity: 1,
   fillOpacity: 1,
-  pane: "providerPane"
+  pane: "providerPane",
+  interactive: true
 });
       },
 
