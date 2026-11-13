@@ -1,0 +1,316 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>National Endometriosis Specialist Accessibility</title>
+
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+      rel="stylesheet">
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js"></script>
+
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; }
+  #map { position: absolute; inset: 0; }
+.maplibregl-canvas {
+  cursor: default !important;
+}
+  .panel {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+    background: white;
+    padding: 14px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px #0002;
+    max-width: 300px;
+  }
+
+  .panel h3 { margin: 0 0 10px; font-size: 16px; }
+  .panel label { display: block; margin: 9px 0; }
+
+  .legend {
+    position: absolute;
+    right: 12px;
+    bottom: 35px;
+    z-index: 10;
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px #0002;
+    font-size: 13px;
+  }
+
+  .gradient {
+    width: 220px;
+    height: 14px;
+    margin: 8px 0;
+  }
+
+  .legend-labels {
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+
+<body>
+<div id="map"></div>
+
+<div class="panel">
+  <h3>Endometriosis Specialist Accessibility</h3>
+
+  <label>
+    <input type="radio" name="metric" value="SPAR" checked>
+    SPAR
+  </label>
+
+  <label>
+    <input type="radio" name="metric" value="SPAI">
+    SPAI
+  </label>
+
+  <label>
+    <input type="checkbox" id="providersToggle" checked>
+    Show provider locations
+  </label>
+
+  <small>
+    2020 Census tracts<br>
+    Female population ages 10–54
+  </small>
+</div>
+
+<div class="legend">
+  <strong id="legendTitle">SPAR (5+ capped)</strong>
+  <div class="gradient" id="gradient"></div>
+  <div class="legend-labels">
+    <span>0</span>
+    <span id="legendMax">5+</span>
+  </div>
+</div>
+
+<script>
+const protocol = new pmtiles.Protocol();
+maplibregl.addProtocol("pmtiles", protocol.tile);
+
+const viridis = [
+  "#440154", "#482878", "#3e4989",
+  "#31688e", "#26828e", "#1f9e89",
+  "#35b779", "#6ece58", "#b5de2b", "#fde725"
+];
+
+const magma = [
+  "#000004", "#180f3d", "#440f76",
+  "#721f81", "#9e2f7f", "#cd4071",
+  "#f1605d", "#fd9668", "#feca8d", "#fcfdbf"
+];
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: {
+    version: 8,
+    sources: {
+      basemap: {
+  type: "raster",
+  tiles: [
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+  ],
+  tileSize: 256,
+  attribution: "© OpenStreetMap contributors"
+}
+    },
+    layers: [{
+      id: "basemap",
+      type: "raster",
+      source: "basemap"
+    }]
+  },
+  center: [-98.5, 39.5],
+  zoom: 3.5
+});
+map.on("error", (e) => {
+  console.error("MapLibre error:", e.error);
+});
+
+function colorExpression(metric) {
+  const colors = metric === "SPAR" ? viridis : magma;
+  const max = metric === "SPAR" ? 5 : 0.00005;
+
+  const expr = [
+    "interpolate", ["linear"],
+    ["min", ["to-number", ["get", metric], 0], max]
+  ];
+
+  colors.forEach((color, i) => {
+    expr.push((i / (colors.length - 1)) * max);
+    expr.push(color);
+  });
+
+  return expr;
+}
+
+function updateLegend(metric) {
+  const colors = metric === "SPAR" ? viridis : magma;
+
+  document.getElementById("legendTitle").textContent =
+    metric === "SPAR" ? "SPAR (5+ capped)" : "SPAI";
+
+  document.getElementById("legendMax").textContent =
+    metric === "SPAR" ? "5+" : "5 × 10⁻⁵";
+
+  document.getElementById("gradient").style.background =
+    "linear-gradient(to right," + colors.join(",") + ")";
+}
+
+map.on("load", async () => {
+
+  map.addSource("tracts", {
+  type: "vector",
+  url: "pmtiles://" +
+    new URL(
+      "data/endometriosis_tracts.pmtiles",
+      window.location.href
+    ).href
+});
+
+  map.addLayer({
+    id: "tract-fill",
+    type: "fill",
+    source: "tracts",
+    "source-layer": "tracts",
+    paint: {
+      "fill-color": colorExpression("SPAR"),
+      "fill-opacity": 0.8
+    }
+  });
+
+  map.addLayer({
+    id: "tract-outline",
+    type: "line",
+    source: "tracts",
+    "source-layer": "tracts",
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": 0.25,
+      "line-opacity": 0.5
+    }
+  });
+// State boundaries
+map.addSource("state-boundaries", {
+  type: "geojson",
+  data: "data/states.geojson"
+});
+
+map.addLayer({
+  id: "state-outlines",
+  type: "line",
+  source: "state-boundaries",
+  paint: {
+    "line-color": "#FFFFFF",
+    "line-width": 1.5,
+    "line-opacity": 0.95
+  }
+});
+  // Load actual provider locations
+  map.addSource("providers", {
+    type: "geojson",
+    data: "data/endometriosis_providers.geojson"
+  });
+
+  map.addLayer({
+    id: "provider-points",
+    type: "circle",
+    source: "providers",
+    paint: {
+      "circle-radius": 4,
+      "circle-color": "#1565ff",
+      "circle-opacity": 0.85,
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": 0.5
+    }
+  });
+
+  // Census tract popup
+ map.on("click", "tract-fill", (e) => {
+
+  // Don't show tract popup when clicking a provider
+  const providerFeatures = map.queryRenderedFeatures(
+    e.point,
+    { layers: ["provider-points"] }
+  );
+
+  if (providerFeatures.length > 0) {
+    return;
+  }
+
+  const p = e.features[0].properties;
+
+    new maplibregl.Popup()
+      .setLngLat(e.lngLat)
+      .setHTML(`
+        <b>FIPS:</b> ${p.FIPS}<br>
+        <b>SPAR:</b> ${Number(p.SPAR).toFixed(2)}<br>
+        <b>SPAI:</b> ${Number(p.SPAI).toExponential(3)}<br>
+        <b>Females ages 10–54:</b>
+        ${Number(p.POPULATION).toLocaleString()}
+      `)
+      .addTo(map);
+  });
+
+  // Provider popup
+  map.on("click", "provider-points", (e) => {
+    const p = e.features[0].properties;
+
+    new maplibregl.Popup()
+      .setLngLat(e.lngLat)
+      .setHTML(`
+        <b>Endometriosis Excision Specialist</b><br>
+        <b>Weighted provider supply:</b>
+        ${Number(p.supply).toFixed(2)}
+      `)
+      .addTo(map);
+  });
+
+  // Layer toggle
+  document.querySelectorAll(
+    'input[name="metric"]'
+  ).forEach(input => {
+    input.addEventListener("change", (e) => {
+      const metric = e.target.value;
+
+      map.setPaintProperty(
+        "tract-fill",
+        "fill-color",
+        colorExpression(metric)
+      );
+
+      updateLegend(metric);
+    });
+  });
+
+  // Provider toggle
+  document.getElementById("providersToggle")
+    .addEventListener("change", (e) => {
+      map.setLayoutProperty(
+        "provider-points",
+        "visibility",
+        e.target.checked ? "visible" : "none"
+      );
+    });
+
+  updateLegend("SPAR");
+});
+
+map.addControl(
+  new maplibregl.NavigationControl(),
+  "top-right"
+);
+</script>
+</body>
+</html>
+
